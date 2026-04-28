@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Drum Coach Pro</title>
+    <style>
+        :root {
+            --neon-green: #39ff14;
+            --dark-bg: #0d0d0d;
+            --card-bg: #1a1a1a;
+            --accent: #ff9f00;
+        }
+
+        * { -webkit-tap-highlight-color: transparent; user-select: none; box-sizing: border-box; }
+
+        body {
+            background-color: var(--dark-bg);
+            color: white;
+            font-family: 'Segoe UI', Roboto, sans-serif;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            overflow: hidden;
+        }
+
+        /* Bajado un poco para que sea más cómodo */
+        #config-trigger {
+            position: absolute;
+            top: 15px; 
+            right: 15px;
+            z-index: 100;
+            background: #222;
+            color: white;
+            padding: 8px 12px;
+            border-radius: 10px;
+            border: 1px solid #444;
+            font-weight: bold;
+            font-size: 0.8rem;
+        }
+
+        .container {
+            background: var(--card-bg);
+            /* Reducido el padding para compactar verticalmente */
+            padding: 1.2rem 1.2rem; 
+            border-radius: 30px;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.6);
+            text-align: center;
+            width: 92%;
+            max-width: 380px;
+            border: 1px solid #333;
+        }
+
+        .app-title-top {
+            font-size: 0.8rem;
+            color: var(--neon-green);
+            text-transform: uppercase;
+            letter-spacing: 3px;
+            font-weight: 800;
+            margin-bottom: 2px;
+            opacity: 0.8;
+        }
+
+        .bpm-display {
+            font-size: 4.5rem; /* Un pelín más chico */
+            font-weight: 900;
+            color: var(--neon-green);
+            line-height: 0.8;
+            margin-bottom: 5px;
+        }
+
+        .bpm-label { font-size: 0.9rem; color: #444; letter-spacing: 2px; }
+
+        .controls { display: flex; justify-content: space-between; margin: 12px 0; gap: 8px; }
+
+        .btn-ctrl {
+            background: #252525;
+            color: white;
+            border: 1px solid #444;
+            border-radius: 12px;
+            flex: 1;
+            height: 48px; /* Reducido de 55px */
+            font-size: 1.1rem;
+            font-weight: bold;
+        }
+
+        .btn-main {
+            width: 100%;
+            border-radius: 15px;
+            height: 52px; /* Reducido de 60px */
+            font-weight: 800;
+            font-size: 0.9rem;
+            border: none;
+            cursor: pointer;
+            text-transform: uppercase;
+        }
+
+        #btn-play { background: white; color: black; margin-bottom: 10px; }
+        #btn-random { background: var(--accent); color: black; }
+
+        #instruction-box {
+            height: 75px; /* Reducido de 90px */
+            margin: 12px 0;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 20px;
+            border-radius: 18px;
+            background: rgba(0,0,0,0.4);
+            border: 2px dashed #333;
+        }
+
+        #text-instr { font-size: 1rem; font-weight: 700; color: #eee; text-align: left; }
+        #note-icon { font-size: 3rem; color: var(--accent); }
+
+        .drum-visual-container {
+            margin-top: 5px;
+            background: #000;
+            padding: 10px;
+            border-radius: 20px;
+            border: 1px solid #222;
+            margin-bottom: 10px;
+        }
+
+        .staff-line { stroke: #333; stroke-width: 1.5; }
+        .drum-svg { width: 100%; height: auto; max-height: 110px; } /* Limitada la altura */
+        .head { fill: #222; transition: 0.1s; }
+        .shell { fill: #111; stroke: #333; }
+        .cymbal { fill: #332b00; stroke: #443c00; }
+        .active-hit { fill: var(--neon-green) !important; filter: drop-shadow(0 0 10px var(--neon-green)); }
+
+        #side-panel {
+            position: fixed; right: -100%; top: 0; width: 85%; height: 100%;
+            background: #111; padding: 25px; z-index: 1000; transition: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            overflow-y: auto;
+        }
+        #side-panel.open { right: 0; }
+        .config-title { color: var(--accent); margin: 25px 0 10px; font-weight: bold; border-bottom: 1px solid #333; }
+        .grid-options { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+        .opt-btn { background: #222; color: #555; border: 1px solid #333; padding: 12px; border-radius: 10px; font-weight: bold; }
+        .opt-btn.active { background: var(--neon-green); color: black; border-color: var(--neon-green); }
+        .btn-add { background: #333; color: var(--accent); border: 1px dashed var(--accent); }
+
+        .game-mode-desc {
+            font-size: 0.75rem;
+            color: #888;
+            margin-top: 10px;
+            line-height: 1.3;
+            font-style: italic;
+            text-align: center;
+        }
+
+        .flash { animation: pulse 0.1s alternate; }
+        @keyframes pulse { from { transform: scale(1); } to { transform: scale(1.03); } }
+    </style>
+</head>
+<body>
+
+    <button id="config-trigger" onclick="togglePanel()">AJUSTES ⚙</button>
+
+    <div id="side-panel">
+        <h2 style="margin:0">CONFIGURACIÓN</h2>
+        <div class="config-title">NOTAS</div>
+        <div id="filter-notas" class="grid-options"></div>
+        <div class="config-title">CUERPOS</div>
+        <div id="filter-partes" class="grid-options"></div>
+        <div class="config-title">MODO JUEGO</div>
+        <div style="background: #1a1a1a; padding: 15px; border-radius: 15px;">
+            <div style="display:flex; align-items:center; justify-content:center; gap:15px; margin-bottom:10px;">
+                <button class="btn-ctrl" style="height:40px;" onclick="changeInc(-1)">-</button>
+                <div id="inc-val" style="font-size:1.8rem; font-weight:bold; color:var(--neon-green)">0</div>
+                <button class="btn-ctrl" style="height:40px;" onclick="changeInc(1)">+</button>
+            </div>
+            <button id="game-btn" style="width:100%; padding:12px; border-radius:8px; border:none; font-weight:bold; background:#444;" onclick="toggleGame()">MODO JUEGO: OFF</button>
+            <p class="game-mode-desc">Aumenta automáticamente el BPM según el valor de incremento cada vez que cambia la instrucción en Modo Random.</p>
+        </div>
+        <button style="width:100%; margin-top:20px; padding:15px; background:#333; color:white; border:none; border-radius:10px;" onclick="restoreAll()">RESTAURAR FILTROS</button>
+        <button style="width:100%; margin-top:10px; padding:15px; background:var(--accent); color:black; border:none; border-radius:10px;" onclick="togglePanel()">CERRAR</button>
+    </div>
+
+    <div class="container" id="main-card">
+        <div class="app-title-top">Drum Coach Pro</div>
+        <div class="bpm-display" id="bpm-val">120</div>
+        <div class="bpm-label">BPM</div>
+
+        <div class="controls">
+            <button class="btn-ctrl" onclick="changeBpm(-5)">-5</button>
+            <button class="btn-ctrl" onclick="changeBpm(-1)">-1</button>
+            <button class="btn-ctrl" onclick="changeBpm(1)">+1</button>
+            <button class="btn-ctrl" onclick="changeBpm(5)">+5</button>
+        </div>
+
+        <button class="btn-main" id="btn-play" onclick="toggleMetronome()">START CLICK</button>
+        
+        <div id="instruction-box">
+            <div id="text-instr">LISTO...</div>
+            <div id="note-icon">♩</div>
+        </div>
+
+        <div class="drum-visual-container">
+            <svg class="drum-svg" viewBox="0 0 200 130">
+                <line class="staff-line" x1="10" y1="20" x2="190" y2="20" /> <line class="staff-line" x1="10" y1="35" x2="190" y2="35" /> <line class="staff-line" x1="10" y1="50" x2="190" y2="50" /> <line class="staff-line" x1="10" y1="65" x2="190" y2="65" /> <line class="staff-line" x1="10" y1="80" x2="190" y2="80" /> 
+                <g id="n-Hi-hat" style="opacity:0; transition:0.2s;">
+                    <line x1="145" y1="5" x2="155" y2="15" stroke="var(--accent)" stroke-width="3"/>
+                    <line x1="155" y1="5" x2="145" y2="15" stroke="var(--accent)" stroke-width="3"/>
+                </g>
+                <ellipse id="n-Tom 1" cx="150" cy="27" rx="6" ry="4" fill="var(--neon-green)" style="opacity:0; transition:0.2s;"/>
+                <ellipse id="n-Tom 2" cx="150" cy="35" rx="6" ry="4" fill="var(--neon-green)" style="opacity:0; transition:0.2s;"/>
+                <ellipse id="n-Redoblante" cx="150" cy="57" rx="6" ry="4" fill="var(--neon-green)" style="opacity:0; transition:0.2s;"/>
+                <ellipse id="n-Tom base" cx="150" cy="72" rx="6" ry="4" fill="var(--neon-green)" style="opacity:0; transition:0.2s;"/>
+                <ellipse id="n-Bombo" cx="150" cy="88" rx="7" ry="5" fill="var(--neon-green)" style="opacity:0; transition:0.2s;"/>
+
+                <circle class="shell" cx="100" cy="100" r="25" />
+                <circle id="v-Bombo" class="head" cx="100" cy="100" r="22" />
+                <rect class="shell" x="35" y="85" width="35" height="10" rx="2" />
+                <rect id="v-Redoblante" class="head" x="37" y="83" width="31" height="4" rx="1" />
+                <ellipse class="cymbal" cx="30" cy="50" rx="18" ry="3" />
+                <ellipse id="v-Hi-hat" class="head" cx="30" cy="48" rx="16" ry="2" />
+                <rect class="shell" x="75" y="60" width="18" height="12" rx="2" />
+                <rect id="v-Tom 1" class="head" x="77" y="58" width="14" height="3" rx="1" />
+                <rect class="shell" x="105" y="60" width="18" height="12" rx="2" />
+                <rect id="v-Tom 2" class="head" x="107" y="58" width="14" height="3" rx="1" />
+                <rect class="shell" x="135" y="85" width="30" height="20" rx="2" />
+                <rect id="v-Tom base" class="head" x="137" y="83" width="26" height="5" rx="1" />
+            </svg>
+        </div>
+
+        <button class="btn-main" id="btn-random" onclick="startRandomMode()">MODO RANDOM</button>
+    </div>
+
+    <script>
+        let bpm = 120, isPlaying = false, audioContext = null, timerID = null;
+        let beatCount = 0, nextNoteTime = 0.0, gameMode = false, increment = 0;
+        let randomActive = false, randomInterval = null;
+
+        let notasBase = ["Negra", "Corchea", "Semicorchea"];
+        let partesBase = ["Redoblante", "Hi-hat", "Bombo", "Tom 1", "Tom 2", "Tom base"];
+        const iconosNotas = { "Negra": "♩", "Corchea": "♫", "Semicorchea": "♬" };
+        let filtros = { notas: [...notasBase], partes: [...partesBase] };
+
+        function initUI() {
+            const nC = document.getElementById('filter-notas'), pC = document.getElementById('filter-partes');
+            nC.innerHTML = ''; pC.innerHTML = '';
+            
+            notasBase.forEach(n => {
+                const b = document.createElement('button'); b.className = `opt-btn ${filtros.notas.includes(n)?'active':''}`;
+                b.innerText = n; b.onclick = () => { if(filtros.notas.length > 1 || !filtros.notas.includes(n)) { filtros.notas = filtros.notas.includes(n) ? filtros.notas.filter(x=>x!==n) : [...filtros.notas, n]; initUI(); } };
+                nC.appendChild(b);
+            });
+            const addN = document.createElement('button'); addN.className = "opt-btn btn-add"; addN.innerText = "+";
+            addN.onclick = () => { let val = prompt("Nombre de la nueva nota:"); if(val) { notasBase.push(val); filtros.notas.push(val); initUI(); } };
+            nC.appendChild(addN);
+
+            partesBase.forEach(p => {
+                const b = document.createElement('button'); b.className = `opt-btn ${filtros.partes.includes(p)?'active':''}`;
+                b.innerText = p; b.onclick = () => { if(filtros.partes.length > 1 || !filtros.partes.includes(p)) { filtros.partes = filtros.partes.includes(p) ? filtros.partes.filter(x=>x!==p) : [...filtros.partes, p]; initUI(); } };
+                pC.appendChild(b);
+            });
+            const addP = document.createElement('button'); addP.className = "opt-btn btn-add"; addP.innerText = "+";
+            addP.onclick = () => { let val = prompt("Nombre del nuevo cuerpo:"); if(val) { partesBase.push(val); filtros.partes.push(val); initUI(); } };
+            pC.appendChild(addP);
+        }
+
+        function highlight(p) {
+            document.querySelectorAll('.head').forEach(el => el.classList.remove('active-hit'));
+            document.querySelectorAll('ellipse[id^="n-"], g[id^="n-"]').forEach(n => n.style.opacity = "0");
+            const v = document.getElementById('v-'+p), n = document.getElementById('n-'+p);
+            if(v) v.classList.add('active-hit');
+            if(n) n.style.opacity = "1";
+            setTimeout(() => { if(v) v.classList.remove('active-hit'); if(n) n.style.opacity = "0"; }, 800);
+        }
+
+        function changeBpm(v) { bpm = Math.max(30, Math.min(250, bpm + v)); document.getElementById('bpm-val').innerText = bpm; }
+        function changeInc(v) { increment = Math.max(0, Math.min(10, increment+v)); document.getElementById('inc-val').innerText = increment; }
+        function toggleGame() { gameMode = !gameMode; const b = document.getElementById('game-btn'); b.innerText = `MODO JUEGO: ${gameMode?'ON':'OFF'}`; b.style.background = gameMode?'var(--neon-green)':'#444'; b.style.color = gameMode?'black':'#888'; }
+        function togglePanel() { document.getElementById('side-panel').classList.toggle('open'); }
+        function restoreAll() { 
+            notasBase = ["Negra", "Corchea", "Semicorchea"]; 
+            partesBase = ["Redoblante", "Hi-hat", "Bombo", "Tom 1", "Tom 2", "Tom base"]; 
+            filtros = { notas: [...notasBase], partes: [...partesBase] }; 
+            initUI(); 
+        }
+
+        function scheduler() {
+            while (nextNoteTime < audioContext.currentTime + 0.1) {
+                const osc = audioContext.createOscillator(), env = audioContext.createGain();
+                osc.frequency.value = (beatCount % 4 === 0) ? 1000 : 600;
+                env.gain.exponentialRampToValueAtTime(1, nextNoteTime);
+                env.gain.exponentialRampToValueAtTime(0.001, nextNoteTime + 0.05);
+                osc.connect(env); env.connect(audioContext.destination);
+                osc.start(nextNoteTime); osc.stop(nextNoteTime + 0.05);
+                nextNoteTime += 60.0 / bpm; beatCount++;
+            }
+            timerID = setTimeout(scheduler, 25);
+        }
+
+        function toggleMetronome() {
+            if (!audioContext) audioContext = new AudioContext();
+            isPlaying = !isPlaying;
+            if (isPlaying) { beatCount = 0; nextNoteTime = audioContext.currentTime; scheduler(); document.getElementById('btn-play').innerText = "STOP CLICK"; }
+            else { clearTimeout(timerID); document.getElementById('btn-play').innerText = "START CLICK"; }
+        }
+
+        function startRandomMode() {
+            if (randomActive) { clearInterval(randomInterval); randomActive = false; document.getElementById('btn-random').innerText = "MODO RANDOM"; return; }
+            randomActive = true; document.getElementById('btn-random').innerText = "STOP RANDOM"; lanzar(); randomInterval = setInterval(lanzar, 5000);
+        }
+
+        function lanzar() {
+            const f = filtros.notas[Math.floor(Math.random()*filtros.notas.length)], p = filtros.partes[Math.floor(Math.random()*filtros.partes.length)];
+            document.getElementById('text-instr').innerText = `${f} en ${p}`;
+            document.getElementById('note-icon').innerText = iconosNotas[f] || "♫";
+            highlight(p);
+            const m = new SpeechSynthesisUtterance(`${f} en ${p}`); m.lang = 'es-AR'; window.speechSynthesis.speak(m);
+            if(gameMode) changeBpm(increment);
+            document.getElementById('main-card').classList.add('flash');
+            setTimeout(() => document.getElementById('main-card').classList.remove('flash'), 100);
+        }
+        initUI();
+    </script>
+</body>
+</html>
